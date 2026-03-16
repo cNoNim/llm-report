@@ -108,3 +108,7 @@ Test suite:
 ```bash
 pixi run test
 ```
+
+## Acknowledgments
+
+This project was developed with substantial AI assistance using OpenAI Codex and Claude Code.
