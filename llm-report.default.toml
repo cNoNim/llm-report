@@ -1,0 +1,15 @@
+[homes]
+codex = [
+  "~/.codex",
+]
+claude = [
+  "~/.claude",
+]
+gemini = [
+  "~/.gemini",
+]
+
+[pricing]
+codex = "pricing.openai.json"
+claude = "pricing.anthropic.json"
+gemini = "pricing.gemini.json"

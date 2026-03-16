@@ -1,0 +1,80 @@
+{
+  "source_url": "https://platform.claude.com/docs/en/about-claude/pricing",
+  "extracted_at": "2026-03-16T18:00:00+00:00",
+  "pricing_tier": "standard",
+  "unit": "usd_per_1m_tokens",
+  "models": {
+    "claude-opus-4-6": {
+      "display_name": "Claude Opus 4.6",
+      "input": 5.0,
+      "cached_input": 0.50,
+      "cache_creation_5m": 6.25,
+      "cache_creation_1h": 10.0,
+      "output": 25.0
+    },
+    "claude-opus-4-5-20251101": {
+      "display_name": "Claude Opus 4.5",
+      "input": 5.0,
+      "cached_input": 0.50,
+      "cache_creation_5m": 6.25,
+      "cache_creation_1h": 10.0,
+      "output": 25.0
+    },
+    "claude-opus-4-1-20250414": {
+      "display_name": "Claude Opus 4.1",
+      "input": 15.0,
+      "cached_input": 1.50,
+      "cache_creation_5m": 18.75,
+      "cache_creation_1h": 30.0,
+      "output": 75.0
+    },
+    "claude-opus-4-20250514": {
+      "display_name": "Claude Opus 4",
+      "input": 15.0,
+      "cached_input": 1.50,
+      "cache_creation_5m": 18.75,
+      "cache_creation_1h": 30.0,
+      "output": 75.0
+    },
+    "claude-sonnet-4-6": {
+      "display_name": "Claude Sonnet 4.6",
+      "input": 3.0,
+      "cached_input": 0.30,
+      "cache_creation_5m": 3.75,
+      "cache_creation_1h": 6.0,
+      "output": 15.0
+    },
+    "claude-sonnet-4-5-20250929": {
+      "display_name": "Claude Sonnet 4.5",
+      "input": 3.0,
+      "cached_input": 0.30,
+      "cache_creation_5m": 3.75,
+      "cache_creation_1h": 6.0,
+      "output": 15.0
+    },
+    "claude-sonnet-4-20250514": {
+      "display_name": "Claude Sonnet 4",
+      "input": 3.0,
+      "cached_input": 0.30,
+      "cache_creation_5m": 3.75,
+      "cache_creation_1h": 6.0,
+      "output": 15.0
+    },
+    "claude-haiku-4-5-20251001": {
+      "display_name": "Claude Haiku 4.5",
+      "input": 1.0,
+      "cached_input": 0.10,
+      "cache_creation_5m": 1.25,
+      "cache_creation_1h": 2.0,
+      "output": 5.0
+    },
+    "claude-haiku-3-5-20241022": {
+      "display_name": "Claude Haiku 3.5",
+      "input": 0.80,
+      "cached_input": 0.08,
+      "cache_creation_5m": 1.0,
+      "cache_creation_1h": 1.6,
+      "output": 4.0
+    }
+  }
+}

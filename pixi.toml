@@ -1,0 +1,20 @@
+[workspace]
+name = "llm-report"
+version = "0.1.0"
+description = "Aggregated usage statistics from LLM CLI sessions"
+channels = ["conda-forge"]
+platforms = ["osx-arm64", "linux-64"]
+
+[dependencies]
+python = ">=3.12"
+pytest = ">=8"
+
+[tasks]
+collect-codex = { cmd = "python -m llm_report collect --provider codex", env = { PYTHONPATH = "src" } }
+report-codex = { cmd = "python -m llm_report report --provider codex", env = { PYTHONPATH = "src" } }
+collect-claude = { cmd = "python -m llm_report collect --provider claude", env = { PYTHONPATH = "src" } }
+report-claude = { cmd = "python -m llm_report report --provider claude", env = { PYTHONPATH = "src" } }
+collect-gemini = { cmd = "python -m llm_report collect --provider gemini", env = { PYTHONPATH = "src" } }
+report-gemini = { cmd = "python -m llm_report report --provider gemini", env = { PYTHONPATH = "src" } }
+report-all = { cmd = "python -m llm_report report", env = { PYTHONPATH = "src" } }
+test = { cmd = "python -m pytest tests/ -v -p no:cacheprovider", env = { PYTHONPATH = "src" } }

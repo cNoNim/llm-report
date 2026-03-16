@@ -1,0 +1,48 @@
+{
+  "sessionId": "session-2026-03-16T09-15-sample",
+  "projectHash": "project-1",
+  "startTime": "2026-03-16T09:15:00.000Z",
+  "lastUpdated": "2026-03-16T09:17:00.000Z",
+  "messages": [
+    {
+      "id": "u1",
+      "timestamp": "2026-03-16T09:15:00.000Z",
+      "type": "user",
+      "content": [
+        {
+          "text": "inspect the repo and summarize the architecture"
+        }
+      ]
+    },
+    {
+      "id": "g1",
+      "timestamp": "2026-03-16T09:16:00.000Z",
+      "type": "gemini",
+      "content": "I inspected the repo.",
+      "model": "gemini-2.5-pro",
+      "tokens": {
+        "input": 1000,
+        "output": 150,
+        "cached": 400,
+        "thoughts": 30,
+        "tool": 20,
+        "total": 1200
+      }
+    },
+    {
+      "id": "g2",
+      "timestamp": "2026-03-16T09:17:00.000Z",
+      "type": "gemini",
+      "content": "Here is the summary.",
+      "model": "gemini-2.5-flash",
+      "tokens": {
+        "input": 500,
+        "output": 50,
+        "cached": 100,
+        "thoughts": 10,
+        "tool": 0,
+        "total": 560
+      }
+    }
+  ]
+}
