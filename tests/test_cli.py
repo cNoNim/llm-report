@@ -146,6 +146,32 @@ claude = ["{claude_home}"]
     assert str(claude_home) in captured.out
 
 
+def test_main_report_filters_config_homes_by_provider(tmp_path, capsys):
+    codex_home = tmp_path / "codex-a"
+    claude_home = tmp_path / "claude-a"
+    codex_home.mkdir()
+    _create_threads_db(codex_home / "state_5.sqlite")
+    (claude_home / "projects").mkdir(parents=True)
+
+    config_path = tmp_path / "llm-report.toml"
+    config_path.write_text(
+        f"""
+[homes]
+codex = ["{codex_home}"]
+claude = ["{claude_home}"]
+""".strip(),
+        encoding="utf-8",
+    )
+
+    main(["report", "--config", str(config_path), "--provider", "codex"])
+
+    captured = capsys.readouterr()
+    assert "# Codex Usage Report" in captured.out
+    assert "# Combined Usage Report" not in captured.out
+    assert str(codex_home) in captured.out
+    assert str(claude_home) not in captured.out
+
+
 def test_main_uses_default_config_when_local_config_missing(tmp_path, capsys, monkeypatch):
     codex_home = tmp_path / "codex-a"
     claude_home = tmp_path / "claude-a"
@@ -171,6 +197,32 @@ claude = ["{claude_home}"]
     assert "# Combined Usage Report" in captured.out
     assert str(codex_home) in captured.out
     assert str(claude_home) in captured.out
+
+
+def test_main_collect_filters_config_homes_by_provider(tmp_path, capsys):
+    codex_home = tmp_path / "codex-a"
+    claude_home = tmp_path / "claude-a"
+    codex_home.mkdir()
+    _create_threads_db(codex_home / "state_5.sqlite")
+    (claude_home / "projects").mkdir(parents=True)
+
+    config_path = tmp_path / "llm-report.toml"
+    config_path.write_text(
+        f"""
+[homes]
+codex = ["{codex_home}"]
+claude = ["{claude_home}"]
+""".strip(),
+        encoding="utf-8",
+    )
+
+    main(["collect", "--config", str(config_path), "--provider", "codex"])
+
+    captured = capsys.readouterr()
+    payload = json.loads(captured.out)
+    assert payload["provider"] == "codex"
+    assert payload["data_home"] == str(codex_home)
+    assert "homes" not in payload
 
 
 def test_main_auto_loads_default_pricing(tmp_path, capsys, monkeypatch):

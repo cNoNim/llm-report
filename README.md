@@ -42,6 +42,11 @@ gemini = "pricing.gemini.json"
 
 CLI flags like `--home`, `--codex-home`, `--claude-home`, and `--gemini-home` override config-based home discovery for that run.
 
+When config contains homes for multiple providers:
+
+- `report-all` combines all configured homes
+- `report --provider codex|claude|gemini` only uses homes for that provider
+
 ## Pixi
 
 `pixi` is the recommended way to run this project locally.
@@ -75,6 +80,8 @@ pixi run report-claude
 pixi run report-gemini
 pixi run test
 ```
+
+`report-all` renders a combined report across configured homes. The provider-specific tasks only render that provider's configured homes.
 
 Directly:
 

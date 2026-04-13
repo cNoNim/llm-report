@@ -107,7 +107,7 @@ def _collect_reports(
     config: ReportConfig | None,
 ) -> Report | CombinedReport:
     reports: list[Report] = []
-    codex_homes, claude_homes, gemini_homes = _configured_homes(args, config)
+    codex_homes, claude_homes, gemini_homes = _configured_homes(args, provider, config)
 
     for home in codex_homes:
         reports.append(_collect_codex_home(home))
@@ -265,6 +265,7 @@ def _load_config_or_exit(config_path: str | None) -> ReportConfig | None:
 
 def _configured_homes(
     args: argparse.Namespace,
+    provider: str,
     config: ReportConfig | None,
 ) -> tuple[list[Path], list[Path], list[Path]]:
     if args.home or args.codex_home or args.claude_home or args.gemini_home:
@@ -276,6 +277,13 @@ def _configured_homes(
 
     if config is None:
         return ([], [], [])
+
+    if provider == "codex":
+        return (list(config.codex_homes), [], [])
+    if provider == "claude":
+        return ([], list(config.claude_homes), [])
+    if provider == "gemini":
+        return ([], [], list(config.gemini_homes))
 
     return (
         list(config.codex_homes),
