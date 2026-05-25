@@ -32,6 +32,7 @@ def _create_test_db(db_path: Path, threads: list[dict]) -> None:
             git_sha TEXT,
             git_branch TEXT,
             git_origin_url TEXT,
+            model TEXT,
             agent_nickname TEXT,
             agent_role TEXT
         )
@@ -41,14 +42,14 @@ def _create_test_db(db_path: Path, threads: list[dict]) -> None:
             """
             INSERT INTO threads (id, rollout_path, created_at, updated_at, source,
                                  model_provider, cwd, title, sandbox_policy, approval_mode,
-                                 tokens_used, agent_nickname, agent_role)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                 tokens_used, model, agent_nickname, agent_role)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 t["id"], t["rollout_path"], t["created_at"], t["updated_at"],
                 t["source"], t["model_provider"], t["cwd"], t["title"],
                 t["sandbox_policy"], t["approval_mode"], t["tokens_used"],
-                t.get("agent_nickname"), t.get("agent_role"),
+                t.get("model"), t.get("agent_nickname"), t.get("agent_role"),
             ),
         )
     conn.commit()
@@ -138,6 +139,27 @@ def test_collect_missing_rollout(tmp_path):
     report = collect(tmp_path)
     s = report.sessions[0]
     assert s.usage_by_model == {"unknown": TokenUsage(total_tokens=1000)}
+
+
+def test_collect_missing_rollout_uses_db_model(tmp_path):
+    _create_test_db(tmp_path / "state_5.sqlite", [{
+        "id": "019d0000-0000-0000-0000-000000000004",
+        "rollout_path": "/nonexistent/rollout.jsonl",
+        "created_at": 1773928800,
+        "updated_at": 1773928860,
+        "source": "cli",
+        "model_provider": "openai",
+        "cwd": "/tmp",
+        "title": "Missing rollout",
+        "sandbox_policy": "read_only",
+        "approval_mode": "on_failure",
+        "tokens_used": 1000,
+        "model": "gpt-5.5",
+    }])
+
+    report = collect(tmp_path)
+    s = report.sessions[0]
+    assert s.usage_by_model == {"gpt-5.5": TokenUsage(total_tokens=1000)}
 
 
 def test_collect_no_db(tmp_path):

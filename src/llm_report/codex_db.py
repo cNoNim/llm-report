@@ -41,11 +41,26 @@ def read_threads(db_path: Path) -> list[dict[str, Any]]:
     conn = sqlite3.connect(uri, uri=True)
     conn.row_factory = sqlite3.Row
     try:
+        available_columns = _table_columns(conn, "threads")
+        selected_columns = [
+            "id",
+            "title",
+            "created_at",
+            "updated_at",
+            "source",
+            "model_provider",
+            "tokens_used",
+            "rollout_path",
+            "agent_nickname",
+            "agent_role",
+        ]
+        for optional_column in ("model",):
+            if optional_column in available_columns:
+                selected_columns.append(optional_column)
+
         rows = conn.execute(
-            """
-            SELECT id, title, created_at, updated_at, source,
-                   model_provider, tokens_used, rollout_path,
-                   agent_nickname, agent_role
+            f"""
+            SELECT {", ".join(selected_columns)}
             FROM threads
             ORDER BY created_at
             """
@@ -58,7 +73,12 @@ def read_threads(db_path: Path) -> list[dict[str, Any]]:
     return [_row_to_thread(row) for row in rows]
 
 
+def _table_columns(conn: sqlite3.Connection, table: str) -> set[str]:
+    return {row["name"] for row in conn.execute(f"PRAGMA table_info({table})")}
+
+
 def _row_to_thread(row: sqlite3.Row) -> dict[str, Any]:
+    keys = set(row.keys())
     return {
         "id": row["id"],
         "title": row["title"],
@@ -70,4 +90,5 @@ def _row_to_thread(row: sqlite3.Row) -> dict[str, Any]:
         "rollout_path": row["rollout_path"],
         "agent_nickname": row["agent_nickname"],
         "agent_role": row["agent_role"],
+        "model": row["model"] if "model" in keys else None,
     }

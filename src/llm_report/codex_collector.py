@@ -124,9 +124,11 @@ def _build_session(thread: dict[str, Any]) -> SessionReport:
         usage_by_model = parse_rollout(rollout_path)
         if not usage_by_model and tokens_used > 0:
             model = extract_last_model(rollout_path)
+            if model == "unknown":
+                model = _thread_model(thread)
             usage_by_model = {model: TokenUsage(total_tokens=tokens_used)}
     elif tokens_used > 0:
-        usage_by_model = {"unknown": TokenUsage(total_tokens=tokens_used)}
+        usage_by_model = {_thread_model(thread): TokenUsage(total_tokens=tokens_used)}
 
     return SessionReport(
         id=thread["id"],
@@ -153,3 +155,10 @@ def _empty_report(codex_home: Path) -> Report:
         grand_total_by_model={},
         grand_total=TokenUsage(),
     )
+
+
+def _thread_model(thread: dict[str, Any]) -> str:
+    model = thread.get("model")
+    if isinstance(model, str) and model:
+        return model
+    return "unknown"

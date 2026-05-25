@@ -1,14 +1,38 @@
 {
   "source_url": "https://developers.openai.com/api/docs/pricing",
-  "extracted_at": "2026-03-16T15:05:52.463188+00:00",
+  "extracted_at": "2026-05-25T14:55:08+00:00",
   "pricing_tier": "standard",
   "unit": "usd_per_1m_tokens",
   "models": {
+    "gpt-5.5": {
+      "display_name": "gpt-5.5 (<272K context length)",
+      "input": 5.0,
+      "cached_input": 0.5,
+      "output": 30.0
+    },
+    "gpt-5.5-pro": {
+      "display_name": "gpt-5.5-pro (<272K context length)",
+      "input": 30.0,
+      "cached_input": null,
+      "output": 180.0
+    },
     "gpt-5.4": {
       "display_name": "gpt-5.4 (<272K context length)",
       "input": 2.5,
       "cached_input": 0.25,
       "output": 15.0
+    },
+    "gpt-5.4-mini": {
+      "display_name": "gpt-5.4-mini",
+      "input": 0.75,
+      "cached_input": 0.075,
+      "output": 4.5
+    },
+    "gpt-5.4-nano": {
+      "display_name": "gpt-5.4-nano",
+      "input": 0.2,
+      "cached_input": 0.02,
+      "output": 1.25
     },
     "gpt-5.4-pro": {
       "display_name": "gpt-5.4-pro (<272K context length)",
