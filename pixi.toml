@@ -12,6 +12,7 @@ pytest = ">=8"
 [tasks]
 collect-codex = { cmd = "python -m llm_report collect --provider codex", env = { PYTHONPATH = "src" } }
 report-codex = { cmd = "python -m llm_report report --provider codex", env = { PYTHONPATH = "src" } }
+utilization-codex = { cmd = "python -m llm_report utilization-codex", env = { PYTHONPATH = "src" } }
 collect-claude = { cmd = "python -m llm_report collect --provider claude", env = { PYTHONPATH = "src" } }
 report-claude = { cmd = "python -m llm_report report --provider claude", env = { PYTHONPATH = "src" } }
 collect-gemini = { cmd = "python -m llm_report collect --provider gemini", env = { PYTHONPATH = "src" } }

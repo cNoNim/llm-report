@@ -12,6 +12,7 @@ from llm_report.claude_collector import claude_collect
 from llm_report.config import ConfigLoadError, ReportConfig, find_config_path, load_config
 from llm_report.codex_collector import collect
 from llm_report.codex_db import StateReadError
+from llm_report.codex_utilization import collect_codex_utilization, utilization_to_markdown
 from llm_report.gemini_collector import gemini_collect
 from llm_report.models import CombinedReport, Report
 from llm_report.pricing import PricingCatalog, PricingLoadError, load_default_pricing, load_pricing
@@ -89,13 +90,43 @@ def main(argv: list[str] | None = None) -> None:
         help="Optional pricing JSON used to estimate cost in USD",
     )
 
+    utilization_cmd = sub.add_parser("utilization-codex", help="Render Codex utilization summary")
+    _add_common_arguments(utilization_cmd)
+    utilization_cmd.add_argument(
+        "--slot-minutes",
+        type=int,
+        default=15,
+        help="Bucket size in minutes; must divide 1440 (default: 15)",
+    )
+    utilization_cmd.add_argument(
+        "--threshold",
+        type=float,
+        default=95.0,
+        help="Limit used percent treated as constrained (default: 95)",
+    )
+    utilization_cmd.add_argument(
+        "--productive-day-hours",
+        type=float,
+        default=8.0,
+        help="Daily active-hour cap counted as productive (default: 8)",
+    )
+    utilization_cmd.add_argument(
+        "--timezone",
+        default="Europe/Moscow",
+        help="Timezone used for daily buckets (default: Europe/Moscow)",
+    )
+
     args = parser.parse_args(argv)
 
-    if args.command not in {"collect", "report"}:
+    if args.command not in {"collect", "report", "utilization-codex"}:
         parser.print_help()
         sys.exit(1)
 
     config = _load_config_or_exit(args.config)
+    if args.command == "utilization-codex":
+        _output_codex_utilization(args, config)
+        return
+
     provider = args.provider
     report = _collect_reports(args, provider, config)
     _output(args, report, config)
@@ -110,51 +141,58 @@ def _collect_reports(
     codex_homes, claude_homes, gemini_homes = _configured_homes(args, provider, config)
 
     for home in codex_homes:
-        reports.append(_collect_codex_home(home))
+        reports.append(_collect_codex_home(home, _account_for_home(config, "codex", home)))
 
     for home in claude_homes:
-        reports.append(_collect_claude_home(home))
+        reports.append(_collect_claude_home(home, _account_for_home(config, "claude", home)))
 
     for home in gemini_homes:
-        reports.append(_collect_gemini_home(home))
+        reports.append(_collect_gemini_home(home, _account_for_home(config, "gemini", home)))
 
     if args.home:
         if provider == "auto":
             provider = _detect_provider(args.home)
-        reports.append(_collect_single_home(provider, Path(args.home).expanduser()))
+        home = Path(args.home).expanduser()
+        if provider == "codex":
+            reports.append(_collect_codex_home(home, _account_for_home(config, "codex", home)))
+        else:
+            reports.append(_collect_single_home(provider, home, config))
     elif not reports:
         if provider == "auto":
             provider = _detect_provider(None)
-        reports.append(_collect_default_home(provider, args.home))
+        reports.append(_collect_default_home(provider, args.home, config))
 
     if len(reports) == 1:
         return reports[0]
     return combine_reports(reports)
 
 
-def _collect_single_home(provider: str, home: Path) -> Report:
+def _collect_single_home(provider: str, home: Path, config: ReportConfig | None) -> Report:
     if provider == "claude":
-        return _collect_claude_home(home)
+        return _collect_claude_home(home, _account_for_home(config, "claude", home))
     if provider == "gemini":
-        return _collect_gemini_home(home)
-    return _collect_codex_home(home)
+        return _collect_gemini_home(home, _account_for_home(config, "gemini", home))
+    return _collect_codex_home(home, _account_for_home(config, "codex", home))
 
 
-def _collect_default_home(provider: str, args_home: str | None) -> Report:
+def _collect_default_home(provider: str, args_home: str | None, config: ReportConfig | None) -> Report:
     if provider == "claude":
-        return _collect_claude_home(_resolve_claude_home(args_home))
+        home = _resolve_claude_home(args_home)
+        return _collect_claude_home(home, _account_for_home(config, "claude", home))
     if provider == "gemini":
-        return _collect_gemini_home(_resolve_gemini_home(args_home))
-    return _collect_codex_home(_resolve_codex_home(args_home))
+        home = _resolve_gemini_home(args_home)
+        return _collect_gemini_home(home, _account_for_home(config, "gemini", home))
+    home = _resolve_codex_home(args_home)
+    return _collect_codex_home(home, _account_for_home(config, "codex", home))
 
 
-def _collect_codex_home(codex_home: Path) -> Report:
+def _collect_codex_home(codex_home: Path, account: str | None = None) -> Report:
     if not codex_home.is_dir():
         print(f"Error: CODEX_HOME not found: {codex_home}", file=sys.stderr)
         sys.exit(1)
 
     try:
-        report = collect(codex_home)
+        report = collect(codex_home, account=account)
     except StateReadError as exc:
         print(f"Error: {exc}", file=sys.stderr)
         sys.exit(1)
@@ -162,20 +200,20 @@ def _collect_codex_home(codex_home: Path) -> Report:
     return report
 
 
-def _collect_claude_home(claude_home: Path) -> Report:
+def _collect_claude_home(claude_home: Path, account: str | None = None) -> Report:
     if not claude_home.is_dir():
         print(f"Error: CLAUDE_HOME not found: {claude_home}", file=sys.stderr)
         sys.exit(1)
 
-    return claude_collect(claude_home)
+    return claude_collect(claude_home, account=account)
 
 
-def _collect_gemini_home(gemini_home: Path) -> Report:
+def _collect_gemini_home(gemini_home: Path, account: str | None = None) -> Report:
     if not gemini_home.is_dir():
         print(f"Error: GEMINI_HOME not found: {gemini_home}", file=sys.stderr)
         sys.exit(1)
 
-    return gemini_collect(gemini_home)
+    return gemini_collect(gemini_home, account=account)
 
 
 def _output(
@@ -198,6 +236,43 @@ def _output(
         pricing = _load_pricing_for_report(report, config)
 
     print(report_to_markdown(report, pricing))
+
+
+def _output_codex_utilization(
+    args: argparse.Namespace,
+    config: ReportConfig | None,
+) -> None:
+    homes, _, _ = _configured_homes(args, "codex", config)
+    if args.home:
+        homes.append(Path(args.home).expanduser())
+    elif not homes:
+        homes.append(_resolve_codex_home(None))
+
+    for home in homes:
+        if not home.is_dir():
+            print(f"Error: CODEX_HOME not found: {home}", file=sys.stderr)
+            sys.exit(1)
+
+    try:
+        report = collect_codex_utilization(
+            homes,
+            accounts=config.codex_accounts if config is not None else None,
+            timezone_name=args.timezone,
+            slot_minutes=args.slot_minutes,
+            threshold_percent=args.threshold,
+            productive_day_hours=args.productive_day_hours,
+        )
+    except ValueError as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        sys.exit(1)
+
+    print(utilization_to_markdown(report))
+
+
+def _account_for_home(config: ReportConfig | None, provider: str, home: Path) -> str | None:
+    if config is None:
+        return None
+    return config.accounts_for_provider(provider).get(home)
 
 
 def _load_pricing_for_report(

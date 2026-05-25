@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from llm_report.codex_db import find_state_db, read_threads
+from llm_report.codex_rollout import extract_last_model, parse_rollout
 from llm_report.models import (
     DailyReport,
     MonthlyReport,
@@ -15,7 +16,6 @@ from llm_report.models import (
     SessionReport,
     TokenUsage,
 )
-from llm_report.codex_rollout import extract_last_model, parse_rollout
 
 
 def _parse_source(raw: str) -> tuple[str, str | None]:
@@ -62,11 +62,11 @@ def _sum_usage(by_model: dict[str, TokenUsage]) -> TokenUsage:
     return total
 
 
-def collect(codex_home: Path) -> Report:
+def collect(codex_home: Path, account: str | None = None) -> Report:
     """Build a complete report from CODEX_HOME data."""
     db_path = find_state_db(codex_home)
     if db_path is None:
-        return _empty_report(codex_home)
+        return _empty_report(codex_home, account)
 
     threads = read_threads(db_path)
     sessions: list[SessionReport] = []
@@ -109,6 +109,7 @@ def collect(codex_home: Path) -> Report:
         monthly=monthly,
         grand_total_by_model=grand_by_model,
         grand_total=_sum_usage(grand_by_model),
+        account=account,
     )
 
 
@@ -145,7 +146,7 @@ def _build_session(thread: dict[str, Any]) -> SessionReport:
     )
 
 
-def _empty_report(codex_home: Path) -> Report:
+def _empty_report(codex_home: Path, account: str | None = None) -> Report:
     return Report(
         generated_at=datetime.now(timezone.utc).isoformat(),
         data_home=str(codex_home),
@@ -154,6 +155,7 @@ def _empty_report(codex_home: Path) -> Report:
         monthly={},
         grand_total_by_model={},
         grand_total=TokenUsage(),
+        account=account,
     )
 
 

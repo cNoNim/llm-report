@@ -22,6 +22,14 @@ class ReportConfig:
     claude_homes: tuple[Path, ...] = ()
     gemini_homes: tuple[Path, ...] = ()
     pricing_paths: dict[str, Path] = field(default_factory=dict)
+    account_labels: dict[str, dict[Path, str]] = field(default_factory=dict)
+
+    @property
+    def codex_accounts(self) -> dict[Path, str]:
+        return self.accounts_for_provider("codex")
+
+    def accounts_for_provider(self, provider: str) -> dict[Path, str]:
+        return self.account_labels.get(provider, {})
 
 
 def load_config(path: Path) -> ReportConfig:
@@ -39,12 +47,14 @@ def load_config(path: Path) -> ReportConfig:
     base_dir = path.expanduser().resolve().parent
     homes = _as_table(data.get("homes"), "homes", path)
     pricing = _as_table(data.get("pricing"), "pricing", path)
+    accounts = _as_table(data.get("accounts"), "accounts", path)
 
     return ReportConfig(
         codex_homes=_parse_home_list(homes, "codex", base_dir, path),
         claude_homes=_parse_home_list(homes, "claude", base_dir, path),
         gemini_homes=_parse_home_list(homes, "gemini", base_dir, path),
         pricing_paths=_parse_pricing_paths(pricing, base_dir, path),
+        account_labels=_parse_account_labels(accounts, base_dir, path),
     )
 
 
@@ -86,6 +96,28 @@ def _parse_pricing_paths(
             raise ConfigLoadError(f"pricing.{provider} in {path} must be a string path")
         pricing_paths[provider] = _resolve_path(value, base_dir)
     return pricing_paths
+
+
+def _parse_account_labels(
+    accounts: dict[str, Any],
+    base_dir: Path,
+    path: Path,
+) -> dict[str, dict[Path, str]]:
+    labels_by_provider: dict[str, dict[Path, str]] = {}
+    for provider in ("codex", "claude", "gemini"):
+        value = accounts.get(provider)
+        if value is None:
+            continue
+        if not isinstance(value, dict):
+            raise ConfigLoadError(f"accounts.{provider} in {path} must be a TOML table")
+
+        labels: dict[Path, str] = {}
+        for raw_path, label in value.items():
+            if not isinstance(raw_path, str) or not isinstance(label, str):
+                raise ConfigLoadError(f"accounts.{provider} in {path} must map string paths to string labels")
+            labels[_resolve_path(raw_path, base_dir)] = label
+        labels_by_provider[provider] = labels
+    return labels_by_provider
 
 
 def _resolve_path(raw_path: str, base_dir: Path) -> Path:

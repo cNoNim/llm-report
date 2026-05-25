@@ -15,6 +15,13 @@ claude = ["./data/claude"]
 
 [pricing]
 codex = "pricing/pricing.openai.json"
+
+[accounts.codex]
+"./data/codex" = "personal"
+"~/.codex" = "default"
+
+[accounts.claude]
+"./data/claude" = "work"
 """.strip(),
         encoding="utf-8",
     )
@@ -26,6 +33,10 @@ codex = "pricing/pricing.openai.json"
     assert config.claude_homes == (tmp_path / "data" / "claude",)
     assert config.gemini_homes == ()
     assert config.pricing_paths["codex"] == tmp_path / "pricing" / "pricing.openai.json"
+    assert config.codex_accounts[tmp_path / "data" / "codex"] == "personal"
+    assert config.codex_accounts[Path("~/.codex").expanduser()] == "default"
+    assert config.accounts_for_provider("claude")[tmp_path / "data" / "claude"] == "work"
+    assert config.accounts_for_provider("gemini") == {}
 
 
 def test_load_config_rejects_invalid_home_list(tmp_path):

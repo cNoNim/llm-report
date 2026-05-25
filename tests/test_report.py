@@ -433,18 +433,56 @@ def test_combined_report_to_markdown_renders_home_summary():
     markdown = report_to_markdown(combined)
 
     assert "# Combined Usage Report" in markdown
-    assert "## Home Summary" in markdown
+    assert "## Account: unknown" in markdown
+    assert "### Home Summary" in markdown
     assert "| Provider | Home" in markdown
+    assert "## Account Summary" not in markdown
     assert "| codex" in markdown
     assert "/tmp/codex-home" in markdown
     assert "| claude" in markdown
     assert "/tmp/claude-home" in markdown
-    assert "## Model Summary" in markdown
+    assert "### Model Summary" in markdown
     assert "| Provider | Model" in markdown
     assert "gpt-5.4" in markdown
     assert "claude-sonnet-4-6" in markdown
     assert "| Month   | Sessions | Input | Output |" in markdown
     assert "| 2026-03 |        2 |   160 |     40 |" in markdown
+
+
+def test_combined_report_to_markdown_splits_accounts():
+    combined = combine_reports([
+        Report(
+            generated_at="2026-03-16T14:37:06+00:00",
+            data_home="/tmp/codex-home",
+            provider="codex",
+            account="personal",
+            sessions=[],
+            monthly={},
+            grand_total_by_model={},
+            grand_total=TokenUsage(),
+        ),
+        Report(
+            generated_at="2026-03-16T14:37:06+00:00",
+            data_home="/tmp/claude-home",
+            provider="claude",
+            account="work",
+            sessions=[],
+            monthly={},
+            grand_total_by_model={},
+            grand_total=TokenUsage(),
+        ),
+    ])
+
+    markdown = report_to_markdown(combined)
+
+    assert "Accounts: `personal`, `work`" in markdown
+    assert "## Account: personal" in markdown
+    assert "## Account: work" in markdown
+    personal_section = markdown.split("## Account: personal", 1)[1].split("## Account: work", 1)[0]
+    work_section = markdown.split("## Account: work", 1)[1]
+    assert "/tmp/codex-home" in personal_section
+    assert "/tmp/claude-home" not in personal_section
+    assert "/tmp/claude-home" in work_section
 
 
 def test_combined_report_to_dict_includes_homes():
@@ -626,10 +664,12 @@ def test_combined_report_to_markdown_renders_provider_pricing():
     assert "**Pricing Sources**" in markdown
     assert "- `claude` -> `https://example.com/anthropic`" in markdown
     assert "- `codex` -> `https://example.com/openai`" in markdown
+    assert "## Account: unknown" in markdown
     assert "| Provider | Home             | Sessions |     Input |  Output | Total USD |" in markdown
     assert "| codex    | /tmp/codex-home  |        1 | 1,000,000 | 100,000 |     $3.55 |" in markdown
     assert "| claude   | /tmp/claude-home |        1 | 1,000,000 | 100,000 |     $4.50 |" in markdown
-    assert "## Model Summary" in markdown
+    assert "## Account Summary" not in markdown
+    assert "### Model Summary" in markdown
     assert "| Provider | Model" in markdown
     assert "gpt-5.4" in markdown
     assert "claude-sonnet-4-6" in markdown

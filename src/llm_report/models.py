@@ -76,6 +76,7 @@ class Report:
     grand_total_by_model: dict[str, TokenUsage]
     grand_total: TokenUsage
     provider: str = "codex"
+    account: str | None = None
 
 
 @dataclass

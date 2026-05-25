@@ -6,6 +6,7 @@ import json
 from dataclasses import asdict
 from typing import Any
 
+from llm_report.aggregate import combine_reports
 from llm_report.models import CombinedReport, MonthlyReport, Report, TokenUsage
 from llm_report.pricing import (
     CostBreakdown,
@@ -50,6 +51,7 @@ def _single_report_to_dict(report: Report) -> dict[str, Any]:
         "generated_at": report.generated_at,
         "data_home": report.data_home,
         "provider": report.provider,
+        "account": report.account,
         "sessions": [_session_to_dict(session) for session in report.sessions],
         "monthly": {
             key: _monthly_to_dict(value)
@@ -160,6 +162,8 @@ def _single_report_to_markdown(
         f"Sessions: `{len(report.sessions)}`",
         f"Total tokens: `{_format_int(report.grand_total.total_tokens)}`",
     ]
+    if report.account:
+        lines.insert(4, f"Account: `{report.account}`")
 
     lines.extend(_single_pricing_summary_lines(report.grand_total_by_model, catalog, report.provider))
     lines.extend(_monthly_summary_section(monthly_rows, catalog is not None, show_cache_creation))
@@ -181,7 +185,29 @@ def _combined_report_to_markdown(
     report: CombinedReport,
     pricing: PricingInput = None,
 ) -> str:
-    providers = sorted({home.provider for home in report.homes})
+    lines = [
+        "# Combined Usage Report",
+        "",
+        f"Generated at: `{report.generated_at}`",
+    ]
+
+    account_groups = _combined_account_groups(report.homes)
+    if len(account_groups) > 1 or account_groups[0][0] != "unknown":
+        lines.append(f"Accounts: {_format_code_list([account for account, _ in account_groups])}")
+
+    for account, homes in account_groups:
+        lines.extend(_combined_account_section(account, homes, pricing))
+
+    return "\n".join(lines)
+
+
+def _combined_account_section(
+    account: str,
+    homes: list[Report],
+    pricing: PricingInput,
+) -> list[str]:
+    account_report = combine_reports(homes)
+    providers = sorted({home.provider for home in homes})
     provider_catalogs = {
         provider: catalog
         for provider in providers
@@ -190,41 +216,41 @@ def _combined_report_to_markdown(
     include_pricing = bool(provider_catalogs)
 
     lines = [
-        "# Combined Usage Report",
         "",
-        f"Generated at: `{report.generated_at}`",
+        f"## Account: {account}",
+        "",
         f"Providers: {_format_code_list(providers)}",
-        f"Homes: `{len(report.homes)}`",
-        f"Sessions: `{report.session_count}`",
-        f"Subagents: `{report.subagent_count}`",
-        f"Total tokens: `{_format_int(report.grand_total.total_tokens)}`",
+        f"Homes: `{len(homes)}`",
+        f"Sessions: `{account_report.session_count}`",
+        f"Subagents: `{account_report.subagent_count}`",
+        f"Total tokens: `{_format_int(account_report.grand_total.total_tokens)}`",
     ]
 
-    lines.extend(_combined_pricing_summary_lines(report.homes, pricing))
+    lines.extend(_combined_pricing_summary_lines(homes, pricing))
 
     home_rows = []
-    for home in sorted(report.homes, key=lambda item: (item.provider, item.data_home)):
+    for home in sorted(homes, key=lambda item: (item.provider, item.data_home)):
         breakdown, _ = _estimate_cost_breakdown(
             home.grand_total_by_model,
             _pricing_for_provider(pricing, home.provider),
         )
-        home_rows.append(_combined_home_row(home, include_pricing, breakdown))
+        home_rows.append(_combined_home_row(home, include_pricing, breakdown, include_account=False))
 
     lines.extend([
         "",
-        "## Home Summary",
+        "### Home Summary",
         "",
         *_render_table(
-            headers=_combined_home_headers(include_pricing),
+            headers=_combined_home_headers(include_pricing, include_account=False),
             rows=home_rows,
-            right_align=_combined_home_right_align(include_pricing),
+            right_align=_combined_home_right_align(include_pricing, include_account=False),
         ),
     ])
 
-    model_rows = _combined_model_rows(report.homes, pricing)
+    model_rows = _combined_model_rows(homes, pricing)
     lines.extend([
         "",
-        "## Model Summary",
+        "### Model Summary",
         "",
         *_render_table(
             headers=_combined_model_headers(include_pricing),
@@ -234,13 +260,20 @@ def _combined_report_to_markdown(
     ])
 
     monthly_rows: list[list[str]] = []
-    for month, monthly_report in sorted(report.monthly.items()):
-        breakdown, _ = _combined_month_cost_breakdown(report.homes, month, pricing)
+    for month, monthly_report in sorted(account_report.monthly.items()):
+        breakdown, _ = _combined_month_cost_breakdown(homes, month, pricing)
         monthly_rows.append(_combined_month_row(month, monthly_report, include_pricing, breakdown))
 
-    lines.extend(_combined_monthly_summary_section(monthly_rows, include_pricing))
+    lines.extend(_combined_monthly_summary_section(monthly_rows, include_pricing, "### Monthly Summary"))
 
-    return "\n".join(lines)
+    return lines
+
+
+def _combined_account_groups(reports: list[Report]) -> list[tuple[str, list[Report]]]:
+    grouped: dict[str, list[Report]] = {}
+    for report in reports:
+        grouped.setdefault(_report_account(report), []).append(report)
+    return sorted(grouped.items(), key=lambda item: item[0])
 
 
 def _single_pricing_summary_lines(
@@ -392,6 +425,7 @@ def _combined_home_row(
     report: Report,
     include_pricing: bool,
     cost_breakdown: CostBreakdown | None,
+    include_account: bool = True,
 ) -> list[str]:
     row = [
         report.provider,
@@ -400,9 +434,58 @@ def _combined_home_row(
         _format_int(report.grand_total.input_tokens),
         _format_int(report.grand_total.output_tokens),
     ]
+    if include_account:
+        row.insert(1, _report_account(report))
     if include_pricing:
         row.append(_format_usd(_total_cost(cost_breakdown)))
     return row
+
+
+def _combined_account_rows(
+    reports: list[Report],
+    pricing: PricingInput,
+) -> list[list[str]]:
+    accounts: dict[tuple[str, str], dict[str, Any]] = {}
+
+    for report in reports:
+        account = _report_account(report)
+        key = (report.provider, account)
+        if key not in accounts:
+            accounts[key] = {
+                "provider": report.provider,
+                "account": account,
+                "homes": 0,
+                "sessions": 0,
+                "usage": TokenUsage(),
+                "by_model": {},
+            }
+        item = accounts[key]
+        item["homes"] += 1
+        item["sessions"] += len(report.sessions)
+        item["usage"] += report.grand_total
+        _merge_usage(item["by_model"], report.grand_total_by_model)
+
+    rows: list[list[str]] = []
+    for item in sorted(
+        accounts.values(),
+        key=lambda value: (-value["usage"].total_tokens, value["provider"], value["account"]),
+    ):
+        breakdown, _ = _estimate_cost_breakdown(
+            item["by_model"],
+            _pricing_for_provider(pricing, item["provider"]),
+        )
+        row = [
+            item["provider"],
+            item["account"],
+            str(item["homes"]),
+            str(item["sessions"]),
+            _format_int(item["usage"].input_tokens),
+            _format_int(item["usage"].output_tokens),
+        ]
+        if _has_any_pricing(pricing):
+            row.append(_format_usd(_total_cost(breakdown)))
+        rows.append(row)
+    return rows
 
 
 def _combined_model_rows(
@@ -494,6 +577,7 @@ def _monthly_summary_section(
 def _combined_monthly_summary_section(
     rows: list[list[str]],
     include_pricing: bool,
+    heading: str = "## Monthly Summary",
 ) -> list[str]:
     headers = ["Month", "Sessions", "Input", "Output"]
     if include_pricing:
@@ -503,7 +587,7 @@ def _combined_monthly_summary_section(
         right_align.add(4)
     return [
         "",
-        "## Monthly Summary",
+        heading,
         "",
         *_render_table(
             headers=headers,
@@ -551,17 +635,34 @@ def _summary_right_align(
     return right_align
 
 
-def _combined_home_headers(include_pricing: bool) -> list[str]:
+def _combined_home_headers(include_pricing: bool, include_account: bool = True) -> list[str]:
     headers = ["Provider", "Home", "Sessions", "Input", "Output"]
+    if include_account:
+        headers.insert(1, "Account")
     if include_pricing:
         headers.append("Total USD")
     return headers
 
 
-def _combined_home_right_align(include_pricing: bool) -> set[int]:
-    right_align = {2, 3, 4}
+def _combined_home_right_align(include_pricing: bool, include_account: bool = True) -> set[int]:
+    offset = 1 if include_account else 0
+    right_align = {2 + offset, 3 + offset, 4 + offset}
     if include_pricing:
-        right_align.add(5)
+        right_align.add(5 + offset)
+    return right_align
+
+
+def _combined_account_headers(include_pricing: bool) -> list[str]:
+    headers = ["Provider", "Account", "Homes", "Sessions", "Input", "Output"]
+    if include_pricing:
+        headers.append("Total USD")
+    return headers
+
+
+def _combined_account_right_align(include_pricing: bool) -> set[int]:
+    right_align = {2, 3, 4, 5}
+    if include_pricing:
+        right_align.add(6)
     return right_align
 
 
@@ -706,6 +807,19 @@ def _single_home_label(provider: str) -> str:
         "claude": "CLAUDE_HOME",
         "gemini": "GEMINI_HOME",
     }.get(provider, "CODEX_HOME")
+
+
+def _report_account(report: Report) -> str:
+    if report.account:
+        return report.account
+    return "unknown"
+
+
+def _merge_usage(target: dict[str, TokenUsage], source: dict[str, TokenUsage]) -> None:
+    for model, usage in source.items():
+        if model not in target:
+            target[model] = TokenUsage()
+        target[model] += usage
 
 
 

@@ -25,7 +25,7 @@ def _sum_usage(by_model: dict[str, TokenUsage]) -> TokenUsage:
     return total
 
 
-def gemini_collect(gemini_home: Path) -> Report:
+def gemini_collect(gemini_home: Path, account: str | None = None) -> Report:
     """Build a complete report from Gemini CLI auto-saved chat sessions."""
     session_paths = find_all_sessions(gemini_home)
 
@@ -67,4 +67,5 @@ def gemini_collect(gemini_home: Path) -> Report:
         monthly=monthly,
         grand_total_by_model=grand_by_model,
         grand_total=_sum_usage(grand_by_model),
+        account=account,
     )

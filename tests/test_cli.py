@@ -75,6 +75,24 @@ def test_main_gemini_report_renders_markdown(tmp_path, capsys):
     assert "# Gemini CLI Usage Report" in captured.out
 
 
+def test_main_codex_utilization_renders_markdown(tmp_path, capsys):
+    rollout = tmp_path / "sessions" / "rollout.jsonl"
+    rollout.parent.mkdir()
+    rollout.write_text(
+        """
+{"timestamp":"2026-05-01T09:02:00Z","type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"total_tokens":1},"last_token_usage":{"total_tokens":1}},"rate_limits":{"primary":{"used_percent":95.0,"window_minutes":300,"resets_at":1777633200},"secondary":{"used_percent":10.0,"window_minutes":10080,"resets_at":1778238000},"rate_limit_reached_type":null}}}
+""".strip() + "\n",
+        encoding="utf-8",
+    )
+
+    main(["utilization-codex", "--home", str(tmp_path), "--timezone", "UTC"])
+
+    captured = capsys.readouterr()
+    assert "# Codex Utilization Report" in captured.out
+    assert "Constrained 5h h" in captured.out
+    assert "| 2026-05 |" in captured.out
+
+
 def test_main_auto_detects_codex(tmp_path, capsys, monkeypatch):
     monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
     monkeypatch.delenv("CODEX_HOME", raising=False)
@@ -134,6 +152,12 @@ def test_main_renders_combined_report_from_config(tmp_path, capsys):
 [homes]
 codex = ["{codex_home}"]
 claude = ["{claude_home}"]
+
+[accounts.codex]
+"{codex_home}" = "personal"
+
+[accounts.claude]
+"{claude_home}" = "work"
 """.strip(),
         encoding="utf-8",
     )
@@ -142,6 +166,8 @@ claude = ["{claude_home}"]
 
     captured = capsys.readouterr()
     assert "# Combined Usage Report" in captured.out
+    assert "## Account: personal" in captured.out
+    assert "## Account: work" in captured.out
     assert str(codex_home) in captured.out
     assert str(claude_home) in captured.out
 

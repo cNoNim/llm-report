@@ -36,7 +36,7 @@ def _sum_usage(by_model: dict[str, TokenUsage]) -> TokenUsage:
     return total
 
 
-def claude_collect(claude_home: Path) -> Report:
+def claude_collect(claude_home: Path, account: str | None = None) -> Report:
     """Build a complete report from Claude Code JSONL session files."""
     entries = find_all_sessions(claude_home)
 
@@ -88,4 +88,5 @@ def claude_collect(claude_home: Path) -> Report:
         monthly=monthly,
         grand_total_by_model=grand_by_model,
         grand_total=_sum_usage(grand_by_model),
+        account=account,
     )

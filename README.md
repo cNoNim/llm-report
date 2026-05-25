@@ -38,7 +38,21 @@ gemini = ["~/.gemini"]
 codex = "pricing.openai.json"
 claude = "pricing.anthropic.json"
 gemini = "pricing.gemini.json"
+
+[accounts.codex]
+"~/.codex" = "personal"
+
+[accounts.claude]
+"~/.claude" = "personal"
+
+[accounts.gemini]
+"~/.gemini" = "personal"
 ```
+
+Account labels are optional and come only from config. They are useful when
+multiple provider homes belong to different accounts; homes without a configured
+label are grouped as `unknown`. Markdown reports with multiple homes render
+separate account sections instead of mixing account totals together.
 
 CLI flags like `--home`, `--codex-home`, `--claude-home`, and `--gemini-home` override config-based home discovery for that run.
 
@@ -76,12 +90,13 @@ With `pixi`:
 ```bash
 pixi run report-all
 pixi run report-codex
+pixi run utilization-codex
 pixi run report-claude
 pixi run report-gemini
 pixi run test
 ```
 
-`report-all` renders a combined report across configured homes. The provider-specific tasks only render that provider's configured homes.
+`report-all` renders a combined report across configured homes. The provider-specific tasks only render that provider's configured homes. `utilization-codex` renders a bucketed Codex activity and limit-pressure report.
 
 Directly:
 
@@ -96,7 +111,7 @@ PYTHONPATH=src python -m llm_report report --home ~/.claude --provider claude
 - `collect` prints JSON
 - `report` prints Markdown
 
-Combined reports include:
+Combined Markdown reports are grouped by account. Each account section includes:
 
 - per-home summary
 - per-model summary
